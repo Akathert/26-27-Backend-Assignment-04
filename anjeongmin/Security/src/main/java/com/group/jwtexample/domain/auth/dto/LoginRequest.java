@@ -1,5 +1,6 @@
 package com.group.jwtexample.domain.auth.dto;
 
+import com.group.jwtexample.domain.user.entity.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

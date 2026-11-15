@@ -32,12 +32,12 @@ public class PostService {
     }
 
     @Transactional
-    public void deletePost(Long postId, Long userId) {
+    public void deletePost(Long postId, Long userId, boolean isAdmin) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.POST_NOT_FOUND));
 
-        // 인가: 로그인한 사람이 게시글 작성자인지 확인
-        if (!post.isWrittenBy(userId)) {
+        // 작성자도 아니고 관리자도 아니라면 삭제 불가
+        if (!post.isWrittenBy(userId) && !isAdmin) {
             throw new ForbiddenException(ErrorCode.POST_FORBIDDEN);
         }
 

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -40,8 +41,14 @@ public class PostController {
 
     @DeleteMapping("/{postId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deletePost(@PathVariable @Positive(message = "게시글 id는 양수여야 합니다.") Long postId,
-                           @AuthenticationPrincipal Long userId) {
-        postService.deletePost(postId, userId);
+    public void deletePost(
+            @PathVariable @Positive(message = "게시글 id는 양수여야 합니다.") Long postId,
+            @AuthenticationPrincipal Long userId,
+            Authentication authentication
+    ) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")); // Admin이면 강제삭제
+
+        postService.deletePost(postId, userId, isAdmin);
     }
 }

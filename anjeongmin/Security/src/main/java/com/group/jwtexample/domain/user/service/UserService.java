@@ -1,5 +1,6 @@
 package com.group.jwtexample.domain.user.service;
 
+import com.group.jwtexample.domain.user.dto.AdminMeResponse;
 import com.group.jwtexample.domain.user.dto.UserResponse;
 import com.group.jwtexample.domain.user.entity.User;
 import com.group.jwtexample.domain.user.repository.UserRepository;
@@ -21,5 +22,13 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
 
         return UserResponse.from(user);
+    }
+
+    // 관리자 정보를 반환
+    public AdminMeResponse getAdminInfo(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.USER_NOT_FOUND));
+
+        return AdminMeResponse.from(user);
     }
 }

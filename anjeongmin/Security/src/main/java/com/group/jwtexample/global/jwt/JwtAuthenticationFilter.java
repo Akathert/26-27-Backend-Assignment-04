@@ -1,5 +1,6 @@
 package com.group.jwtexample.global.jwt;
 
+import com.group.jwtexample.domain.user.repository.UserRepository;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -32,20 +34,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // 2. 토큰 검증하고 userId 꺼내기
                 Long userId = jwtProvider.getUserIdFromAccessToken(token);
 
-                // 3. "이 요청은 userId 사용자가 보냈다"는 인증 정보 만들기
-                Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
-                        userId,                                         // principal: 누구인지
-                        null,                                           // credentials: 검증 끝났으니 필요 없음
-                        List.of(new SimpleGrantedAuthority("ROLE_USER")) // authorities: 권한
-                );
+                String role = jwtProvider.getRoleFromAccessToken(token);
 
-                // 4. SecurityContext에 저장 → 이제 Spring Security가 "인증된 요청"으로 봅니다.
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                //2-1. 유저 역할에 따라 인증 정보 다르게 적용
+                if ("USER".equals(role) || "ADMIN".equals(role)) {
+                    userRepository.findById(userId).ifPresent(user -> {
 
-            } catch (JwtException | IllegalArgumentException e) {
-                // 잘못된 토큰(위조, 만료 등)이면 인증 정보를 만들지 않고 그냥 넘어갑니다.
-                // → 보호된 API라면 뒤에서 Spring Security가 401을 응답합니다.
-            }
+                        // 3. "이 요청은 userId 사용자가 보냈다"는 인증 정보 만들기
+                        Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
+                                userId,                                         // principal: 누구인지
+                                null,                                           // credentials: 검증 끝났으니 필요 없음
+                                List.of(new SimpleGrantedAuthority("ROLE_" + role)) // authorities: 권한, 토큰의 role로 권한 적용
+                        );
+
+                        // 4. SecurityContext에 저장 → 이제 Spring Security가 "인증된 요청"으로 봅니다.
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    });
+
+                }
+            } catch(JwtException | IllegalArgumentException e){
+                    // 잘못된 토큰(위조, 만료 등)이면 인증 정보를 만들지 않고 그냥 넘어갑니다.
+                    // → 보호된 API라면 뒤에서 Spring Security가 401을 응답합니다.
+                }
         }
 
         // 5. 다음 필터로 넘기기 (토큰이 없거나 잘못됐으면 인증 정보 없이 넘어갑니다)

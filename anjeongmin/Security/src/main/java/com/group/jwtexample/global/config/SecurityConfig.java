@@ -1,5 +1,6 @@
 package com.group.jwtexample.global.config;
 
+import com.group.jwtexample.domain.user.repository.UserRepository;
 import com.group.jwtexample.global.jwt.JwtAuthenticationFilter;
 import com.group.jwtexample.global.jwt.JwtProvider;
 import com.group.jwtexample.global.exception.ErrorCode;
@@ -26,6 +27,7 @@ public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
     private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -41,23 +43,46 @@ public class SecurityConfig {
 
                 // 3. 인증이 안 된 사용자가 보호된 API에 접근하면 401
                 .exceptionHandling(exception -> exception
+
+                        // 인증되지 않은 사용자의 접근: 401
                         .authenticationEntryPoint((request, response, e) -> {
                             ErrorCode errorCode = ErrorCode.AUTH_REQUIRED;
+
                             response.setStatus(errorCode.getStatus().value());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-                            objectMapper.writeValue(response.getOutputStream(), ErrorResponse.from(errorCode));
-                        }))
+
+                            objectMapper.writeValue(
+                                    response.getOutputStream(),
+                                    ErrorResponse.from(errorCode)
+                            );
+                        })
+
+                        // 인증은 됐지만 권한이 부족한 경우: 403
+                        .accessDeniedHandler((request, response, e) -> {
+                            ErrorCode errorCode = ErrorCode.ADMIN_ACCESS_DENIED;
+
+                            response.setStatus(errorCode.getStatus().value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+                            objectMapper.writeValue(
+                                    response.getOutputStream(),
+                                    ErrorResponse.from(errorCode)
+                            );
+                        })
+                )
 
                 // 4. URL별 접근 규칙
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/posts").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/admin/me").hasRole("ADMIN") // 관리자 전용 API 구현
                         .anyRequest().authenticated())
 
                 // 5. 우리가 만든 JWT 필터를 Spring Security 필터 체인에 끼워 넣기
-                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userRepository),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
