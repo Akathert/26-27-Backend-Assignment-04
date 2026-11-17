@@ -1,5 +1,6 @@
 package com.group.jwtexample.global.jwt;
 
+import com.group.jwtexample.domain.user.entity.Role;
 import com.group.jwtexample.domain.user.repository.UserRepository;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -32,26 +33,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null) {
             try {
                 // 2. 토큰 검증하고 userId 꺼내기
-                Long userId = jwtProvider.getUserIdFromAccessToken(token);
-
-                String role = jwtProvider.getRoleFromAccessToken(token);
+                AccessTokenInfo tokenInfo = jwtProvider.getAccessTokenInfo(token);
+                Long userId = tokenInfo.userId();
+                Role role = tokenInfo.role(); // 매서드 하나로 병합
 
                 //2-1. 유저 역할에 따라 인증 정보 다르게 적용
-                if ("USER".equals(role) || "ADMIN".equals(role)) {
                     userRepository.findById(userId).ifPresent(user -> {
 
                         // 3. "이 요청은 userId 사용자가 보냈다"는 인증 정보 만들기
                         Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
                                 userId,                                         // principal: 누구인지
                                 null,                                           // credentials: 검증 끝났으니 필요 없음
-                                List.of(new SimpleGrantedAuthority("ROLE_" + role)) // authorities: 권한, 토큰의 role로 권한 적용
+                                List.of(new SimpleGrantedAuthority("ROLE_" + role.name())) // authorities: 권한, enum role로 권한 적용
                         );
 
                         // 4. SecurityContext에 저장 → 이제 Spring Security가 "인증된 요청"으로 봅니다.
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     });
 
-                }
             } catch(JwtException | IllegalArgumentException e){
                     // 잘못된 토큰(위조, 만료 등)이면 인증 정보를 만들지 않고 그냥 넘어갑니다.
                     // → 보호된 API라면 뒤에서 Spring Security가 401을 응답합니다.

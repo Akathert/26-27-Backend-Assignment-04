@@ -68,6 +68,20 @@ public class JwtProvider {
         return claims.get("role", String.class);
     }
 
+    public AccessTokenInfo getAccessTokenInfo(String token) { // 토큰 정보 레코드 받기
+        Claims claims = parseClaims(token, ACCESS);
+
+        Long userId = Long.valueOf(claims.getSubject());
+        String roleValue = claims.get("role", String.class);
+
+        if (roleValue == null) {
+            throw new IllegalArgumentException("역할이 없습니다.");
+        }
+
+        Role role = Role.valueOf(roleValue);
+        return new AccessTokenInfo(userId, role);
+    }
+
     public Long getUserIdFromRefreshToken(String token) {
         return getUserId(token, REFRESH);
     }
